@@ -29,6 +29,7 @@ namespace SteamBot.Handlers
         public void parse(SteamFriends.ChatMsgCallback group_chat)
         {
             // this is a group chat message
+
             parse_chat(group_chat.ChatRoomID, group_chat.ChatterID, group_chat.Message);
         }
         public void parse(SteamFriends.FriendMsgCallback private_chat)
@@ -45,7 +46,7 @@ namespace SteamBot.Handlers
             parse_chat(null, private_chat.Sender, private_chat.Message);
         }
 
-        void parse_chat(SteamID chat_room, SteamID sender, String message)
+        void parse_chat(SteamID chat_room, SteamID sender, String message, bool admin = false)
         {
             //Program.sendMessage();
             String[] split_message = message.Split(' ');
@@ -87,8 +88,12 @@ namespace SteamBot.Handlers
                     String msg = String.Format("Players in pug {0}: {1}",
                         pug.Id, players);
 
-                    sendMessage(Program.pugChatId, null, msg);
+                    sendMainRoomMessage(msg);
                 }
+            }
+            else if (cmd == "!forcemapvote" && admin)
+            {
+                pug_manager.ForceMapVote(sender);
             }
         }
 
@@ -109,6 +114,11 @@ namespace SteamBot.Handlers
 
                 steam_friends.SendChatMessage(target, type, message);
             }
+        }
+
+        public static void sendMainRoomMessage(String message)
+        {
+            sendMessage(Program.pugChatId, null, message);
         }
 
         void print_cmd(String cmd, String[] args)

@@ -48,6 +48,11 @@ namespace SteamBot.PugLib
             }
         }
 
+        public int MapVoteCount
+        {
+            get { return 0; }
+        }
+
         public bool VotingTimeElapsed(long current_time)
         {
             return (current_time - mapvote_start_time) > mapvote_duration;
@@ -103,6 +108,11 @@ namespace SteamBot.PugLib
         public long Id
         {
             get { return this.id; }
+        }
+
+        public EPugMaps Map
+        {
+            get { return this.map; }
         }
 
         public List<SteamID> Players

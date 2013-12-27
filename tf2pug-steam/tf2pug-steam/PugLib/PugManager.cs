@@ -60,6 +60,8 @@ namespace SteamBot.PugLib
                 if (pug.Full)
                 {
                     String msg = String.Format("Pug {0} is now full. Players: {1}", pug.Id, GetPlayerListAsString(pug));
+                    ChatHandler.sendMainRoomMessage(msg);
+
                     StartMapVote(pug);
                 }
             }
@@ -90,6 +92,21 @@ namespace SteamBot.PugLib
         }
 
         /**
+         * Removes the given player from the pug they are in (if any)
+         * 
+         * @param SteamID player The player to remove
+         */
+        public void RemovePlayer(SteamID player)
+        {
+            Pug pug;
+
+            if ((pug = GetPlayerPug(player)) != null)
+            {
+                pug.Remove(player);
+            }
+        }
+
+        /**
          * Starts a new pug and adds the given player
          * 
          * @param SteamID player The player who is starting this pug
@@ -106,7 +123,7 @@ namespace SteamBot.PugLib
             String msg = String.Format("A {0} player pug has been started by {1}. Type !j to join",
                 pug.Size, steam_friends.GetFriendPersonaName(pug.Starter));
 
-            ChatHandler.sendMessage(Program.pugChatId, null, msg);
+            ChatHandler.sendMainRoomMessage(msg);
 
             AdvertisePug(pug);
         }
@@ -120,7 +137,8 @@ namespace SteamBot.PugLib
         // MAP VOTING
         //----------------------------------------------
 
-        /** Starts map voting for the given pug
+        /** 
+         * Starts map voting for the given pug
          * 
          * @param Pug pug The pug to start the map vote for
          */
@@ -130,13 +148,16 @@ namespace SteamBot.PugLib
 
             String msg = String.Format("Map voting is now in progress for pug {0}. Maps: {1}",
                 pug.Id, Pug.GetMapsAsString());
-            ChatHandler.sendMessage(Program.pugChatId, null, msg);
 
-            ChatHandler.sendMessage(Program.pugChatId, null,
-                "To vote for a map, type !map <map>. eg, !map cp_granary");
+            ChatHandler.sendMainRoomMessage(msg);
+
+            ChatHandler.sendMainRoomMessage(
+                    "To vote for a map, type !map <map>. eg, !map cp_granary"
+                );
         }
 
-        /** Ends map voting for the given pug, forces vote tally, etc
+        /** 
+         * Ends map voting for the given pug, forces vote tally, etc
          * 
          * @param Pug pug The pug to end map voting for
          */
@@ -145,9 +166,32 @@ namespace SteamBot.PugLib
             pug.VoteInProgress = false;
 
             pug.TallyVotes();
+
+            if (pug.Map == EPugMaps.None)
+            {
+                // no one voted, woops! need to pick a random map
+
+            }
+
+            String msg = String.Format("Map voting is complete. {0} won the vote with {1} votes",
+                    pug.Map, pug.MapVoteCount
+                );
+
+            ChatHandler.sendMainRoomMessage(msg);
         }
 
-        /** Adds a player's vote for the given map to the pug they're in
+        public void ForceMapVote(SteamID player)
+        {
+            Pug pug;
+
+            if ((pug = GetPlayerPug(player)) != null)
+            {
+                StartMapVote(pug);
+            }
+        }
+
+        /** 
+         * Adds a player's vote for the given map to the pug they're in
          * 
          * @param SteamID player The player who is voting
          * @param String map The map being voted for
@@ -168,7 +212,8 @@ namespace SteamBot.PugLib
             }
         }
 
-        /** Periodically called to check pug vote periods. Ends map voting
+        /** 
+         * Periodically called to check pug vote periods. Ends map voting
          * once the appropriate duration has passed
          */
         public void CheckMapVotes()
@@ -188,7 +233,8 @@ namespace SteamBot.PugLib
         // MISC HELPER METHODS
         //----------------------------------------------
 
-        /** Returns whether or not a player is in a pug
+        /** 
+         * Returns whether or not a player is in a pug
          * 
          * @param SteamID player The player to check for
          * 
@@ -199,7 +245,8 @@ namespace SteamBot.PugLib
             return GetPlayerPug(player) != null;
         }
 
-        /** Gets the pug the given player is in
+        /** 
+         * Gets the pug the given player is in
          * 
          * @param SteamID player The player to check for
          * 
@@ -216,7 +263,8 @@ namespace SteamBot.PugLib
             return null;
         }
 
-        /** Gets a list of players in the given pug as a string so it can be
+        /** 
+         * Gets a list of players in the given pug as a string so it can be
          * easily printed
          * 
          * @param Pug pug The pug to get the string for
@@ -240,7 +288,8 @@ namespace SteamBot.PugLib
             get { return this.pug_list; }
         }
 
-        /** Gets the current unix timestamp with respect to UTC time
+        /** 
+         * Gets the current unix timestamp with respect to UTC time
          * 
          * @return long Unix timestamp (in seconds)
          */
