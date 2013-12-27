@@ -322,9 +322,36 @@ namespace SteamBot
         {
             // called when a friend's persona state changes, ie someone goes
             // from offline to online
-            
-            if (callback.FriendID.AccountType == EAccountType.Individual)
-                Console.WriteLine("State change: {0} changed to {1}", callback.Name, callback.State);
+
+            if (callback.FriendID.IsClanAccount)
+            {
+                Console.WriteLine("Clan info - name: {0}, id: {1}, rank: {2}",
+                        callback.Name, callback.FriendID, callback.ClanRank
+                    );
+            }
+            else if (callback.SourceSteamID.IsClanAccount)
+            {
+                Console.WriteLine("CLAN MEMBERSHIP INFO - {0} ({1}) is rank {2} in clan {3} ({4})",
+                        callback.Name, callback.FriendID, callback.ClanRank, callback.ClanTag, 
+                        callback.SourceSteamID
+                    );
+
+                
+            }
+            else if (callback.SourceSteamID.IsChatAccount)
+            {
+                Console.WriteLine("GROUP CHAT INFO - user: {0} ({1}), chat: {2}, rank: {3}, tag: {4}, stateflag: {5}, statusflag: {6}",
+                        callback.Name, callback.FriendID, callback.SourceSteamID, callback.ClanRank,
+                        callback.ClanTag, callback.StateFlags, callback.StatusFlags
+                    );
+            }
+            else
+            {
+                Console.WriteLine("State change: {0} ({1}) changed to {2}. Type: {3}, rank: {4}, source: {5}",
+                        callback.Name, callback.FriendID, callback.State,
+                        callback.FriendID.AccountType, callback.ClanRank, callback.SourceSteamID
+                    );
+            }
         }
 
         static void onClanState(SteamFriends.ClanStateCallback callback)
@@ -370,17 +397,41 @@ namespace SteamBot
 
         static void onChatMemberInfo(SteamFriends.ChatMemberInfoCallback callback)
         {
-
+            if (callback.Type == EChatInfoType.StateChange)
+            {
+                Console.WriteLine("CHAT STATE CHANGE - id: {0}, state: {1}, acted on: {2}, acted by: {3}",
+                        callback.ChatRoomID, callback.StateChangeInfo.StateChange,
+                        callback.StateChangeInfo.ChatterActedOn, callback.StateChangeInfo.ChatterActedBy);
+            }
+            else if (callback.Type == EChatInfoType.InfoUpdate)
+            {
+                Console.WriteLine("CHAT INFO UPDATE - id: {0}",
+                        callback.ChatRoomID
+                    );
+            }
+            else
+            {
+                Console.WriteLine("CHAT MEMBER INFO - id: {0}, state: {1}, type: {2}, accounttype: {3}, acted on: {4}",
+                        callback.ChatRoomID, callback.StateChangeInfo, callback.Type,
+                        callback.ChatRoomID.AccountType, callback.StateChangeInfo
+                    );
+            }
         }
 
         static void onChatEntered(SteamFriends.ChatEnterCallback callback)
         {
-            Console.WriteLine("Entered chat {0} - {1}", callback.ChatID, callback.ChatRoomType);
+            Console.WriteLine("Entered chat {0} - {1}. Response: {2}, clan: {3}, owner: {4}, friend: {5}, flags: {6}",
+                    callback.ChatID, callback.ChatRoomType, callback.EnterResponse,
+                    callback.ClanID, callback.OwnerID, callback.FriendID,
+                    callback.ChatFlags
+                );
+            
         }
 
         static void onChatAction(SteamFriends.ChatActionResultCallback callback)
         {
-            
+            Console.WriteLine("CHAT ACTION - action: {0}, room: {1}, chatter: {2}, result: {3}",
+                    callback.Action, callback.ChatRoomID, callback.ChatterID, callback.Result);
         }
 
         /** Print simple usage message */
