@@ -119,6 +119,9 @@ namespace SteamBot
             {
                 // wait 1 second for new callbacks. loop indefinitely
                 cb_manager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+
+                // check map vote timers
+                pug_manager.CheckMapVotes();
             }
 
             cleanup();

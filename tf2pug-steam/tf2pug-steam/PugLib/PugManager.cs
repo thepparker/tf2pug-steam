@@ -29,11 +29,8 @@ namespace SteamBot.PugLib
          */
         public Pug SpaceAvailable()
         {
-            Pug pug;
-            foreach (var pug_item in pug_list)
+            foreach (var pug in pug_list)
             {
-                pug = (Pug)pug_item;
-
                 if (pug.Players.Count < pug.Size)
                     return pug;
             }
@@ -94,6 +91,9 @@ namespace SteamBot.PugLib
 
         /**
          * Starts a new pug and adds the given player
+         * 
+         * @param SteamID player The player who is starting this pug
+         * @param int size (Optional) The number of players that can join the pug
          */ 
         public void CreateNewPug(SteamID player, int size = 12)
         {
@@ -111,7 +111,17 @@ namespace SteamBot.PugLib
             AdvertisePug(pug);
         }
 
+        void AdvertisePug(Pug pug)
+        {
+            
+        }
+
+        //----------------------------------------------
+        // MAP VOTING
+        //----------------------------------------------
+
         /** Starts map voting for the given pug
+         * 
          * @param Pug pug The pug to start the map vote for
          */
         void StartMapVote(Pug pug)
@@ -126,16 +136,22 @@ namespace SteamBot.PugLib
                 "To vote for a map, type !map <map>. eg, !map cp_granary");
         }
 
-        void AdvertisePug(Pug pug)
+        /** Ends map voting for the given pug, forces vote tally, etc
+         * 
+         * @param Pug pug The pug to end map voting for
+         */
+        void EndMapVote(Pug pug)
         {
-            
+            pug.VoteInProgress = false;
+
+            pug.TallyVotes();
         }
 
-        bool PlayerInPug(SteamID player)
-        {
-            return GetPlayerPug(player) != null;
-        }
-
+        /** Adds a player's vote for the given map to the pug they're in
+         * 
+         * @param SteamID player The player who is voting
+         * @param String map The map being voted for
+         */
         public void VoteMap(SteamID player, String map)
         {
             EPugMaps enum_map = (EPugMaps)Enum.Parse(typeof(EPugMaps), map);
@@ -152,13 +168,47 @@ namespace SteamBot.PugLib
             }
         }
 
+        /** Periodically called to check pug vote periods. Ends map voting
+         * once the appropriate duration has passed
+         */
+        public void CheckMapVotes()
+        {
+            long current_time = GetUnixTimeStamp();
+
+            foreach (var pug in pug_list)
+            {
+                if (pug.VoteInProgress && pug.VotingTimeElapsed(current_time))
+                {
+                    EndMapVote(pug);
+                }
+            }
+        }
+
+        //----------------------------------------------
+        // MISC HELPER METHODS
+        //----------------------------------------------
+
+        /** Returns whether or not a player is in a pug
+         * 
+         * @param SteamID player The player to check for
+         * 
+         * @return bool True if in a pug
+         */
+        bool PlayerInPug(SteamID player)
+        {
+            return GetPlayerPug(player) != null;
+        }
+
+        /** Gets the pug the given player is in
+         * 
+         * @param SteamID player The player to check for
+         * 
+         * @return Pug The pug, or null if not in a pug
+         */
         Pug GetPlayerPug(SteamID player)
         {
-            Pug pug;
-            foreach (var pug_item in pug_list)
+            foreach (var pug in pug_list)
             {
-                pug = (Pug)pug_item;
-
                 if (pug.Players.Contains(player))
                     return pug;
             }
@@ -166,6 +216,13 @@ namespace SteamBot.PugLib
             return null;
         }
 
+        /** Gets a list of players in the given pug as a string so it can be
+         * easily printed
+         * 
+         * @param Pug pug The pug to get the string for
+         * 
+         * @return String The string of players
+         */
         public String GetPlayerListAsString(Pug pug)
         {
             List<String> names = new List<String>();
@@ -181,6 +238,15 @@ namespace SteamBot.PugLib
         public List<Pug> Pugs
         {
             get { return this.pug_list; }
+        }
+
+        /** Gets the current unix timestamp with respect to UTC time
+         * 
+         * @return long Unix timestamp (in seconds)
+         */
+        public static long GetUnixTimeStamp()
+        {
+            return (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
         }
     }
 }

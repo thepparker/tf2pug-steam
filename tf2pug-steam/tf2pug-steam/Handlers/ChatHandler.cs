@@ -80,11 +80,8 @@ namespace SteamBot.Handlers
             }
             else if (cmd == "!players")
             {
-                Pug pug;
-                foreach (var pug_item in pug_manager.Pugs)
+                foreach (var pug in pug_manager.Pugs)
                 {
-                    pug = (Pug)pug_item;
-
                     String players = pug_manager.GetPlayerListAsString(pug);
 
                     String msg = String.Format("Players in pug {0}: {1}",
