@@ -6,6 +6,8 @@ using System.Threading;
 
 using SteamKit2;
 
+using SteamBot.PugLib;
+using SteamBot.Handlers;
 
 namespace SteamBot
 {
@@ -16,7 +18,7 @@ namespace SteamBot
         static CallbackManager cb_manager;
 
         static SteamUser user;
-        static SteamFriends friends;
+        static SteamFriends steam_friends;
 
         static bool running;
 
@@ -28,6 +30,12 @@ namespace SteamBot
 
         /** Pug management interfaces */
         static PugManager pug_manager;
+
+        /** Chat parser */
+        static ChatHandler cparser;
+
+        // main pug channel
+        public static SteamID pugChatId = new SteamID(103582791434957782);
 
         /** Entry point. Establish client and user, setup callbacks, and 
          * run the bot
@@ -62,7 +70,7 @@ namespace SteamBot
             client = new SteamClient();
 
             user = client.GetHandler<SteamUser>();
-            friends = client.GetHandler<SteamFriends>();
+            steam_friends = client.GetHandler<SteamFriends>();
 
             // establish callback manager
             cb_manager = new CallbackManager(client);
@@ -87,8 +95,6 @@ namespace SteamBot
             new Callback<SteamFriends.ChatMemberInfoCallback>(onChatMemberInfo, cb_manager);
             new Callback<SteamFriends.ChatEnterCallback>(onChatEntered, cb_manager);
             new Callback<SteamFriends.ChatActionResultCallback>(onChatAction, cb_manager);
-
-
             
             // clan callback
             new Callback<SteamFriends.ClanStateCallback>(onClanState, cb_manager);
@@ -97,6 +103,11 @@ namespace SteamBot
             // something. in this case, it is to store the steamguard sentry
             new JobCallback<SteamUser.UpdateMachineAuthCallback>(onSteamGuardAuth, cb_manager);
 
+            // pug manager
+            pug_manager = new PugManager(steam_friends);
+
+            // establish chat parser
+            cparser = new ChatHandler(steam_friends, pug_manager);
 
             // now enter the main loop and connect
             Console.WriteLine("Connecting to steam...");
@@ -238,15 +249,13 @@ namespace SteamBot
             // online and begin to perform friends actions. this is called
             // shortly after a successful logon
 
-            friends.SetPersonaState(EPersonaState.Online);
+            steam_friends.SetPersonaState(EPersonaState.Online);
 
             Console.WriteLine("Account info received. Clan count: {0}, friend count: {1}",
-                friends.GetClanCount(), friends.GetFriendCount());
+                steam_friends.GetClanCount(), steam_friends.GetFriendCount());
 
             // join the pug channel
-            SteamID pugChatId = new SteamID();
-            pugChatId.SetFromUInt64(103582791434957782);
-            friends.JoinChat(pugChatId);
+            steam_friends.JoinChat(pugChatId);
         }
 
         static void onFriendsList(SteamFriends.FriendsListCallback callback)
@@ -256,7 +265,7 @@ namespace SteamBot
             // occurs. i.e if someone deletes us, the list is sent. likewise,
             // if someone adds us, the list is sent again.
 
-            int num_friends = friends.GetFriendCount();
+            int num_friends = steam_friends.GetFriendCount();
 
             Console.WriteLine("Friends list received. Number of friends: {0}", num_friends);
 
@@ -266,7 +275,7 @@ namespace SteamBot
             {
                 // if we are a recipient of their request, add them
                 if (friend.Relationship == EFriendRelationship.RequestRecipient)
-                    friends.AddFriend(friend.SteamID);
+                    steam_friends.AddFriend(friend.SteamID);
             }
 
             // now we can join the ipgn chat room
@@ -274,10 +283,10 @@ namespace SteamBot
 
             for (int i = 0; i < num_friends; i++)
             {
-                SteamID friendId = friends.GetFriendByIndex(i);
+                SteamID friendId = steam_friends.GetFriendByIndex(i);
 
                 Console.WriteLine("\tidx {0}: {1} ({2}) - {3}", i, friendId,
-                    friends.GetFriendPersonaName(friendId), friendId.AccountType);
+                    steam_friends.GetFriendPersonaName(friendId), friendId.AccountType);
             }
         }
 
@@ -293,12 +302,12 @@ namespace SteamBot
             {
                 // someone invited us to a clan. what do?
                 Console.WriteLine("Invited to a clan - {0} ({1})",
-                        friends.GetClanName(callback.SteamID),
+                        steam_friends.GetClanName(callback.SteamID),
                         callback.SteamID
                     );
 
                 // we just ignore clan invites
-                friends.IgnoreFriend(callback.SteamID);
+                steam_friends.IgnoreFriend(callback.SteamID);
             }
             else if (callback.SteamID.AccountType == EAccountType.Individual)
                 Console.WriteLine("{0} ({1}) is now a friend", callback.PersonaName, callback.SteamID.Render());
@@ -317,6 +326,8 @@ namespace SteamBot
 
         static void onClanState(SteamFriends.ClanStateCallback callback)
         {
+            return;
+
             Console.WriteLine("Clan state change: {0} ({1})",
                 callback.ClanName, callback.ClanID);
 
@@ -329,13 +340,15 @@ namespace SteamBot
         static void onFriendChatMessage(SteamFriends.FriendMsgCallback callback)
         {
             // called when a friend message is received
+            // ignore "user is typing..." shit
             if (callback.EntryType == EChatEntryType.Typing)
                 return;
 
-            Console.WriteLine("@CHATPRIV {0} ({1}): {2}",
-                friends.GetFriendPersonaName(callback.Sender),
+            Console.WriteLine("@PRIVCHAT <- {0} ({1}): {2}",
+                steam_friends.GetFriendPersonaName(callback.Sender),
                 callback.Sender.Render(), callback.Message);
-           
+
+            cparser.parse(callback);
         }
 
         static void onChatRoomMessage(SteamFriends.ChatMsgCallback callback)
@@ -344,23 +357,12 @@ namespace SteamBot
             if (callback.ChatMsgType == EChatEntryType.Typing)
                 return;
             
-            Console.WriteLine("@CHATROOM {0} ({1}): {2}",
-                friends.GetFriendPersonaName(callback.ChatterID),
-                callback.ChatRoomID.Render(), callback.Message);
+            Console.WriteLine("@PUBCHAT <- {0} ({1}): {2}",
+                callback.ChatRoomID.Render(),
+                steam_friends.GetFriendPersonaName(callback.ChatterID),
+                callback.Message);
 
-            SteamID chat_room = callback.ChatRoomID;
-
-            String message = callback.Message;
-
-            String[] splitmsg = message.Split(' ');
-                
-            if (splitmsg.Length < 1) return;
-
-            if (splitmsg[0].ToLower() == "@hello")
-            {
-               sendMessage(chat_room, EChatEntryType.ChatMsg, "HI THERE!");
-            }
-            
+            cparser.parse(callback);
         }
 
         static void onChatMemberInfo(SteamFriends.ChatMemberInfoCallback callback)
@@ -376,18 +378,6 @@ namespace SteamBot
         static void onChatAction(SteamFriends.ChatActionResultCallback callback)
         {
             
-        }
-
-        static void sendMessage(SteamID ID, EChatEntryType type, String message)
-        {
-            if (ID.AccountType == EAccountType.Chat)
-            {
-                friends.SendChatRoomMessage(ID, type, message);
-            }
-            else
-            {
-                friends.SendChatMessage(ID, type, message);
-            }
         }
 
         /** Print simple usage message */

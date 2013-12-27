@@ -45,7 +45,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="PugManager.cs" />
+    <Compile Include="Handlers\ChatHandler.cs" />
+    <Compile Include="PugLib\Pug.cs" />
+    <Compile Include="PugLib\PugManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
