@@ -38,12 +38,16 @@ namespace SteamBot.PugLib
         }
 
         /**
-         * Adds the given player to the first pug with room
+         * Adds the given player to the first pug with room. THe player's ID
+         * object is copied to prevent modifying the cache
          *
-         * @param SteamID player The player to add
+         * @param SteamID id The unaltered ID of the player to add
          */
-        public void AddPlayer(SteamID player)
+        public void AddPlayer(SteamID id)
         {
+            // copy the user
+            SteamID player = id.ConvertToUInt64();
+
             if (PlayerInPug(player))
             {
                 ChatHandler.sendMessage(null, player, "You're already in a pug");

@@ -33,6 +33,10 @@ namespace SteamBot.ClanLib
             Clan clan = new Clan(clanid);
 
             this.clans.Add(clan);
+
+            Console.WriteLine("@CLAN Added clan to clan manager. ID: {0}, chat id: {1}",
+                    clan.ClanId, clan.ChatUserManager.Id
+                );
         }
 
         public void RemoveClan(Clan clan)
@@ -50,39 +54,40 @@ namespace SteamBot.ClanLib
             }
         }
 
-        public void AddClanMember(SteamID tmpclanid, SteamID member, EClanRank rank)
+        public void AddClanMember(SteamID clanid, SteamID member, EClanRank rank)
         {
             if (!member.IsIndividualAccount)
                 return;
-
-            SteamID clanid = CopyClanId(tmpclanid);
 
             Clan clan = GetClanById(clanid);
 
             if (clan != null)
             {
                 clan.MemberManager.AddMember(member, rank);
+
+                Console.WriteLine("@CLAN Added user {0} to clan {1} with rank {2}",
+                        member, clan.ClanId, rank);
             }
         }
 
-        public void AddClanChatMember(SteamID tmpclanid, SteamID member)
+        public void AddClanChatMember(SteamID clanid, SteamID member)
         {
             if (!member.IsIndividualAccount)
                 return;
-
-            SteamID clanid = CopyClanId(tmpclanid);
 
             Clan clan = GetClanById(clanid);
 
             if (clan != null)
             {
                 clan.ChatUserManager.AddUser(member);
+
+                Console.WriteLine("@CLAN Added user {0} to clan chat for clan {1}", member, clan.ClanId);
             }
         }
 
-        Clan GetClanById(SteamID id)
+        public Clan GetClanById(SteamID id)
         {
-            // copy the id
+            // copy the id to ensure it's a clan id
             SteamID clanid = CopyClanId(id);
 
             return clans.Find(x => x.ClanId.AccountID == clanid.AccountID);
@@ -103,7 +108,8 @@ namespace SteamBot.ClanLib
 
             if (!clanid.IsClanAccount)
             {
-                clanid.AccountInstance = (uint)SteamID.ChatInstanceFlags.Clan;
+                clanid.AccountInstance = SteamID.AllInstances;
+                //clanid.AccountInstance = (uint)SteamID.ChatInstanceFlags.Clan;
                 clanid.AccountType = EAccountType.Clan;
             }
 

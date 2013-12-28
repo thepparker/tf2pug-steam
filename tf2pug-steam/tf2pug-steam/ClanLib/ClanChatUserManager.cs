@@ -14,20 +14,22 @@ namespace SteamBot.ClanLib
     class ClanChatUserManager
     {
         /** The chat room's id */
-        private SteamID room_id;
+        private SteamID id;
 
         /** List of users in the room */
         private List<SteamID> userlist;
 
-        public ClanChatUserManager()
+        public ClanChatUserManager(SteamID id)
         {
             userlist = new List<SteamID>();
+
+            this.id = id;
         }
 
-        public SteamID RoomId
+        public SteamID Id
         {
-            get { return this.room_id; }
-            set { this.room_id = value; }
+            get { return this.id; }
+            set { this.id = value; }
         }
 
         public void AddUser(SteamID user)

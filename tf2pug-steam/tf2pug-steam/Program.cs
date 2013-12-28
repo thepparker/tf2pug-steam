@@ -36,10 +36,10 @@ namespace SteamBot
         static ChatHandler cparser;
 
         /** SteamID object for the pug group, needed to send messages to group chat */
-        public static SteamID pugChatId = new SteamID(103582791434957782);
+        public static SteamID pugClanId = new SteamID(103582791434957782);
 
-        /** A collection to manage users and ranks in the pug room */
-        static Dictionary<long, ClanChatUserManager> room_dict;
+        /** A management object for clans, their members and their chat rooms */
+        static ClanManager clan_manager;
 
         /** 
          * Entry point. Establish client and user, setup callbacks, and 
@@ -111,11 +111,11 @@ namespace SteamBot
             // pug manager
             pug_manager = new PugManager(steam_friends);
 
-            // establish chat parser
-            cparser = new ChatHandler(steam_friends, pug_manager);
+            // get the clan manager
+            clan_manager = new ClanManager();
 
-            // get the room dictionary setup
-            room_dict = new Dictionary<long, ClanChatUserManager>();
+            // establish chat parser
+            cparser = new ChatHandler(steam_friends, pug_manager, clan_manager);
 
             // now enter the main loop and connect
             Console.WriteLine("Connecting to steam...");
@@ -267,7 +267,7 @@ namespace SteamBot
                 steam_friends.GetClanCount(), steam_friends.GetFriendCount());
 
             // join the pug channel
-            steam_friends.JoinChat(pugChatId);
+            steam_friends.JoinChat(pugClanId);
         }
 
         static void onFriendsList(SteamFriends.FriendsListCallback callback)
@@ -290,7 +290,6 @@ namespace SteamBot
                     steam_friends.AddFriend(friend.SteamID);
             }
 
-            // now we can join the ipgn chat room
             Console.WriteLine("Friends:");
 
             for (int i = 0; i < num_friends; i++)
@@ -337,6 +336,8 @@ namespace SteamBot
                 Console.WriteLine("Clan info - name: {0}, id: {1}, rank: {2}",
                         callback.Name, callback.FriendID, callback.ClanRank
                     );
+
+                clan_manager.AddClan(callback.FriendID);
             }
             else if (callback.SourceSteamID.IsClanAccount)
             {
@@ -348,8 +349,7 @@ namespace SteamBot
                 EClanRank rank = (EClanRank)callback.ClanRank;
 
                 //add member to this clan
-
-                
+                clan_manager.AddClanMember(callback.SourceSteamID, callback.FriendID, rank);
             }
             else if (callback.SourceSteamID.IsChatAccount)
             {
@@ -357,6 +357,8 @@ namespace SteamBot
                         callback.Name, callback.FriendID, callback.SourceSteamID, (EClanRank)callback.ClanRank,
                         callback.ClanTag, callback.StateFlags, callback.StatusFlags
                     );
+
+                clan_manager.AddClanChatMember(callback.SourceSteamID, callback.FriendID);
             }
             else
             {

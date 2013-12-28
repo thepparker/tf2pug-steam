@@ -52,5 +52,14 @@ namespace SteamBot.ClanLib
                 return EClanRank.None;
             }
         }
+
+        public void PrintMembers()
+        {
+            Console.WriteLine("@CLANMEMBERMANAGER - Members:");
+            foreach (var member in members)
+            {
+                Console.WriteLine("\tUser: {0}, rank: {1}", member.Key, member.Value);
+            }
+        }
     }
 }

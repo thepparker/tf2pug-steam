@@ -23,7 +23,12 @@ namespace SteamBot.ClanLib
             this.clan = clan;
 
             this.member_manager = new ClanMemberManager();
-            this.chat_user_manager = new ClanChatUserManager();
+
+            SteamID chatId = clan.ConvertToUInt64();
+            chatId.AccountInstance = (uint)SteamID.ChatInstanceFlags.Clan;
+            chatId.AccountType = EAccountType.Chat;
+
+            this.chat_user_manager = new ClanChatUserManager(chatId);
         }
 
         public SteamID ClanId
@@ -40,6 +45,11 @@ namespace SteamBot.ClanLib
         public ClanChatUserManager ChatUserManager
         {
             get { return this.chat_user_manager; }
+        }
+
+        public override String ToString()
+        {
+            return this.clan.ToString();
         }
     }
 }
