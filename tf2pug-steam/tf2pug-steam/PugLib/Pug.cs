@@ -157,9 +157,37 @@ namespace SteamBot.PugLib
             return list;
         }
 
+        public String SlotsRemaining
+        {
+            get
+            {
+                return String.Format("{0}/{1} slots remaining", size - players.Count, size);
+            }
+        }
+
         //----------------------------------------------
         // HELPERS
         //----------------------------------------------
+
+        public String GetStatusMessage()
+        {
+            if (vote_in_progress)
+            {
+                return "Map voting currently in progress";
+            }
+            else if (started)
+            {
+                return "The game has started";
+            }
+            else if (!Full)
+            {
+                return String.Format("Gathering players. ({1})", SlotsRemaining);
+            }
+            else
+            {
+                return "Uknown";
+            }
+        }
 
         public long Id
         {

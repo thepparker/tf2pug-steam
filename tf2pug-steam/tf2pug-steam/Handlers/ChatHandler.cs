@@ -71,19 +71,29 @@ namespace SteamBot.Handlers
             String[] args = split_message.Skip(1).Take(split_message.Length - 1).ToArray();
 
             print_cmd(cmd, args, admin);
-            
+
             if (cmd == "!test")
             {
                 sendMessage(chat_room, sender, "test test test!");
             }
             else if (cmd == "!pug")
             {
-
+                if (args.Length > 0)
+                {
+                    pug_manager.CreateNewPug(sender, int.Parse(args[0]));
+                }
+                else
+                {
+                    pug_manager.CreateNewPug(sender);
+                }
             }
-            else if (cmd == "!j" || cmd == "!join"
-                     || cmd == "!add" || cmd == "!me")
+            else if (cmd == "!j" || cmd == "!join" || cmd == "!add")
             {
                 pug_manager.AddPlayer(sender);
+            }
+            else if (cmd == "!l" || cmd == "!leave" || cmd == "!del")
+            {
+                pug_manager.RemovePlayer(sender);
             }
             else if (cmd == "!maps")
             {
@@ -96,14 +106,17 @@ namespace SteamBot.Handlers
             }
             else if (cmd == "!players")
             {
-                foreach (var pug in pug_manager.Pugs)
+                PrintPlayersAll();
+            }
+            else if (cmd == "!status")
+            {
+                if (args.Length > 0)
                 {
-                    String players = pug_manager.GetPlayerListAsString(pug);
-
-                    String msg = String.Format("Players in pug {0}: {1}",
-                        pug.Id, players);
-
-                    sendMainRoomMessage(msg);
+                    return;
+                }
+                else
+                {
+                    PrintStatusAll();
                 }
             }
             else if (cmd == "!forcemapvote" && admin)
@@ -117,9 +130,24 @@ namespace SteamBot.Handlers
                     pug_manager.ForceMapVote(sender);
                 }
             }
-            else if (cmd == "!clanmembers" && admin)
+            else if (cmd == "!clanmembers" && rank == EClanRank.Owner)
             {
                 pug_clan.MemberManager.PrintMembers();
+            }
+            else if (cmd == "!fakeuserjoin" && rank == EClanRank.Owner)
+            {
+                if (args.Length == 0)
+                    return;
+
+                int num_fakes = int.Parse(args[0]);
+                SteamID fake;
+
+                for (int i = 0; i < num_fakes; i++)
+                {
+                    fake = new SteamID((76561197960265728UL + (ulong)i));
+
+                    pug_manager.AddPlayer(fake);
+                }
             }
         }
 
@@ -156,6 +184,36 @@ namespace SteamBot.Handlers
             {
                 Console.WriteLine("\t{0}: {1}", i, args[i]);
             }
+        }
+
+        void PrintPlayersAll()
+        {
+            foreach (var pug in pug_manager.Pugs)
+                PrintPlayers(pug);
+        }
+
+        void PrintPlayers(Pug pug)
+        {
+            String players = pug_manager.GetPlayerListAsString(pug);
+
+            String msg = String.Format("Players in pug {0}: {1}",
+                pug.Id, players);
+
+            sendMainRoomMessage(msg);
+        }
+
+        void PrintStatusAll()
+        {
+            foreach (var pug in pug_manager.Pugs)
+                PrintStatus(pug);
+        }
+
+        void PrintStatus(Pug pug)
+        {
+            String pug_status = pug.GetStatusMessage();
+
+            String msg = String.Format("Status for pug {0}: {1}", pug.Id, pug_status);
+            sendMainRoomMessage(msg);
         }
     }
 }
