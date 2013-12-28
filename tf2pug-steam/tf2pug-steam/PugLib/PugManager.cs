@@ -38,7 +38,7 @@ namespace SteamBot.PugLib
         }
 
         /**
-         * Adds the given player to the first pug with room. THe player's ID
+         * Adds the given player to the first pug with room. The player's ID
          * object is copied to prevent modifying the cache
          *
          * @param SteamID id The unaltered ID of the player to add
@@ -58,7 +58,22 @@ namespace SteamBot.PugLib
 
             if ((pug = SpaceAvailable()) != null)
             {
-                AddPlayer(player, pug);
+                if (AddPlayer(player, pug))
+                {
+                    String msg = String.Format("{0} has joined pug {1} ({2})",
+                            steam_friends.GetFriendPersonaName(player), pug.Id, pug.SlotsRemaining
+                        );
+
+                    ChatHandler.sendMainRoomMessage(msg);
+                }
+                else
+                {
+                    String msg = String.Format("Unable to add {0} to pug {1}",
+                            player, pug.Id
+                        );
+
+                    ChatHandler.sendMainRoomMessage(msg);
+                }
 
                 if (pug.Full)
                 {
@@ -106,6 +121,12 @@ namespace SteamBot.PugLib
             if ((pug = GetPlayerPug(player)) != null)
             {
                 pug.Remove(player);
+
+                String msg = String.Format("{0} has left pug {1}. ({2})",
+                        steam_friends.GetFriendPersonaName(player), pug.Id, pug.SlotsRemaining
+                    );
+                
+                ChatHandler.sendMainRoomMessage(msg);
             }
         }
 
@@ -117,14 +138,26 @@ namespace SteamBot.PugLib
          */ 
         public void CreateNewPug(SteamID player, int size = 12)
         {
+            if (PlayerInPug(player))
+            {
+                ChatHandler.sendMessage(null, player, "You're already in a pug");
+                return;
+            }
+
+            if (size != 12 || size != 18)
+            {
+                ChatHandler.sendMessage(null, player, "Invalid pug size specified. Must be 12 or 18");
+                return;
+            }
+
             Pug pug = new Pug(size);
 
             pug_list.Add(pug);
 
             AddPlayer(player, pug);
 
-            String msg = String.Format("A {0} player pug has been started by {1}. Type !j to join",
-                pug.Size, steam_friends.GetFriendPersonaName(pug.Starter));
+            String msg = String.Format("A {0} player pug has been started by {1}. Pug ID: {2}. Type !j to join",
+                pug.Size, steam_friends.GetFriendPersonaName(pug.Starter), pug.Id);
 
             ChatHandler.sendMainRoomMessage(msg);
 
@@ -216,7 +249,7 @@ namespace SteamBot.PugLib
 
             Pug pug = GetPlayerPug(player);
            
-            if (pug != null)
+            if (pug != null && pug.VoteInProgress)
             {
                 pug.Vote(player, enum_map);
                 
@@ -270,6 +303,8 @@ namespace SteamBot.PugLib
          */
         Pug GetPlayerPug(SteamID player)
         {
+            return pug_list.Find(pug => pug.Players.Contains(player));
+
             foreach (var pug in pug_list)
             {
                 if (pug.Players.Contains(player))
