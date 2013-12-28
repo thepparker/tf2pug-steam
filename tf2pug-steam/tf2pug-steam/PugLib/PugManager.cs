@@ -43,10 +43,10 @@ namespace SteamBot.PugLib
          *
          * @param SteamID id The unaltered ID of the player to add
          */
-        public void AddPlayer(SteamID id)
+        public void AddPlayer(SteamID player)
         {
             // copy the user
-            SteamID player = id.ConvertToUInt64();
+            //SteamID player = id.ConvertToUInt64();
 
             if (PlayerInPug(player))
             {
@@ -147,6 +147,9 @@ namespace SteamBot.PugLib
          */
         void StartMapVote(Pug pug)
         {
+            if (pug.VoteInProgress || pug.Started)
+                return;
+
             pug.VoteInProgress = true;
 
             String msg = String.Format("Map voting is now in progress for pug {0}. Maps: {1}",
@@ -168,29 +171,35 @@ namespace SteamBot.PugLib
         {
             pug.VoteInProgress = false;
 
-            pug.TallyVotes();
+            pug.DetermineWinningMap();
 
             if (pug.Map == EPugMaps.None)
             {
                 // no one voted, woops! need to pick a random map
-
+                pug.Map = EPugMaps.cp_granary;
             }
 
-            String msg = String.Format("Map voting is complete. {0} won the vote with {1} votes",
-                    pug.Map, pug.MapVoteCount
+            String msg = String.Format("Map voting is complete. {0} won the vote with {1} vote(s)",
+                    pug.Map, pug.MapVoteCount(pug.Map)
                 );
 
             ChatHandler.sendMainRoomMessage(msg);
+
+            // now we do some shit to send details, setup server, etc
         }
 
         public void ForceMapVote(SteamID player)
         {
             Pug pug;
-
             if ((pug = GetPlayerPug(player)) != null)
             {
                 StartMapVote(pug);
             }
+        }
+
+        public void ForceMapVote(Pug pug)
+        {
+            StartMapVote(pug);
         }
 
         /** 
@@ -203,15 +212,19 @@ namespace SteamBot.PugLib
         {
             EPugMaps enum_map = (EPugMaps)Enum.Parse(typeof(EPugMaps), map);
             if (!Pug.GetMapsAsList().Contains(enum_map))
-            {
                 return;
-            }
 
             Pug pug = GetPlayerPug(player);
            
             if (pug != null)
             {
                 pug.Vote(player, enum_map);
+                
+                String msg = String.Format("{0} voted for {1} ({2})",
+                        steam_friends.GetFriendPersonaName(player), enum_map, pug.MapVoteCount(enum_map)    
+                    );
+                
+                ChatHandler.sendMainRoomMessage(msg);
             }
         }
 
@@ -264,6 +277,14 @@ namespace SteamBot.PugLib
             }
 
             return null;
+        }
+
+        /**
+         * Gets the pug corresponding to the given ID
+         */
+        public Pug GetPugById(long id)
+        {
+            return pug_list.Find(pug => pug.Id == id);
         }
 
         /** 

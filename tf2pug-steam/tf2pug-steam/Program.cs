@@ -64,6 +64,8 @@ namespace SteamBot
                 e.Cancel = false;
                 cleanup();
 
+                running = false;
+
                 Console.WriteLine("Finished cleanup");
             };
 
