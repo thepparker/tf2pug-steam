@@ -12,11 +12,11 @@ namespace SteamBot.PugLib
         private long id;
 
         private int size;
-        private bool started = false;
+
+        private EPugState state;
 
         private long mapvote_start_time;
         private long mapvote_duration = 60;
-        private bool vote_in_progress = false;
 
         private EPugMaps win_map = EPugMaps.None;
         private int win_map_count = 0;
@@ -26,10 +26,14 @@ namespace SteamBot.PugLib
 
         private List<SteamID> players;
 
+        private List<SteamID> team_red;
+        private List<SteamID> team_blue;
+        
         /** Server details */
-        private String ip;
-        private int port;
-        private String password;
+        public String ip { get; set; }
+        public int port { get; set; }
+        public String password { get; set; }
+        private String admin_password;
 
         public Pug(int size)
         {
@@ -37,7 +41,12 @@ namespace SteamBot.PugLib
 
             players = new List<SteamID>();
 
+            team_red = new List<SteamID>();
+            team_blue = new List<SteamID>();
+
             this.size = size;
+
+            state = EPugState.GATHERING_PLAYERS;
         }
 
         //----------------------------------------------
@@ -46,20 +55,27 @@ namespace SteamBot.PugLib
 
         public bool VoteInProgress
         {
-            get { return this.vote_in_progress; }
-            
-            set 
-            {
-                if (value == true)
-                {
-                    mapvote_start_time = PugManager.GetUnixTimeStamp();
+            get { return this.state == EPugState.MAP_VOTING; }
+        }
 
-                    player_votes = new Dictionary<SteamID, EPugMaps>();
-                    map_votes = new Dictionary<EPugMaps, int>();
-                }
+        public void StartMapVote()
+        {
+            mapvote_start_time = PugManager.GetUnixTimeStamp();
 
-                this.vote_in_progress = value; 
-            }
+            player_votes = new Dictionary<SteamID, EPugMaps>();
+            map_votes = new Dictionary<EPugMaps, int>();
+
+            state = EPugState.MAP_VOTING;
+        }
+
+        public void EndMapVote()
+        {
+            map_votes.OrderBy(vote => vote.Value);
+
+            KeyValuePair<EPugMaps, int> win_pair = map_votes.ElementAt(0);
+
+            this.win_map = win_pair.Key;
+            this.win_map_count = win_pair.Value;
         }
 
         public bool VotingTimeElapsed(long current_time)
@@ -111,19 +127,6 @@ namespace SteamBot.PugLib
             }
         }
 
-        /**
-         * Sets the winning map
-         */
-        public void DetermineWinningMap()
-        {
-            map_votes.OrderBy(vote => vote.Value);
-
-            KeyValuePair<EPugMaps, int> win_pair = map_votes.ElementAt(0);
-
-            this.win_map = win_pair.Key;
-            this.win_map_count = win_pair.Value;
-        }
-
         //----------------------------------------------
         // PLAYER MANIPULATION & INFORMATION
         //----------------------------------------------
@@ -166,22 +169,64 @@ namespace SteamBot.PugLib
         }
 
         //----------------------------------------------
+        // TEAMS
+        //----------------------------------------------
+
+        public void ShuffleTeams()
+        {
+            team_red.Clear();
+            team_blue.Clear();
+
+            team_red.Add(players[0]);
+            team_red.Add(players[1]);
+            team_red.Add(players[2]);
+            team_red.Add(players[3]);
+            team_red.Add(players[4]);
+            team_red.Add(players[5]);
+
+            team_blue.Add(players[6]);
+            team_blue.Add(players[7]);
+            team_blue.Add(players[8]);
+            team_blue.Add(players[9]);
+            team_blue.Add(players[10]);
+            team_blue.Add(players[11]);
+        }
+
+        public List<SteamID> TeamRed
+        {
+            get { return this.team_red; }
+        }
+
+        public List<SteamID> TeamBlue
+        {
+            get { return this.team_blue; }
+        }
+
+        //----------------------------------------------
         // HELPERS
         //----------------------------------------------
 
         public String GetStatusMessage()
         {
-            if (vote_in_progress)
+            if (state == EPugState.MAP_VOTING)
             {
                 return "Map voting currently in progress";
             }
-            else if (started)
+            else if (state == EPugState.GAME_STARTED)
             {
                 return "The game has started";
             }
-            else if (!Full)
+            else if (state == EPugState.GATHERING_PLAYERS)
             {
-                return String.Format("Gathering players. ({1})", SlotsRemaining);
+                return String.Format("Gathering players. ({0})", SlotsRemaining);
+            }
+            else if (state == EPugState.DETAILS_SENT)
+            {
+                return "Details have been sent. Waiting for the game to begin";
+            }
+            else if (state == EPugState.GAME_OVER)
+            {
+                return "The game is over";
             }
             else
             {
@@ -196,8 +241,7 @@ namespace SteamBot.PugLib
 
         public bool Started
         {
-            get { return this.started; }
-            set { this.started = value; }
+            get { return this.state == EPugState.GAME_STARTED; }
         }
 
         public EPugMaps Map
@@ -226,10 +270,32 @@ namespace SteamBot.PugLib
         {
             get { return this.size == this.players.Count; }
         }
+
+        public EPugState State
+        {
+            get { return this.state; }
+            set { this.state = value; }
+        }
+
+        public String AdminPassword
+        {
+            get { return this.admin_password; }
+            set { this.admin_password = value; }
+        }
+
+        public String ConnectString
+        {
+            get
+            {
+                return String.Format("connect {0}:{1}; password {2}",
+                                ip, port, password
+                            );
+            }
+        }
     }
 
     //----------------------------------------------
-    // MAP ENUM
+    // ENUMS
     //----------------------------------------------
     enum EPugMaps
     {
@@ -237,5 +303,14 @@ namespace SteamBot.PugLib
         cp_granary,
         cp_well,
         cp_badlands
+    }
+
+    enum EPugState
+    {
+        GATHERING_PLAYERS,
+        MAP_VOTING,
+        DETAILS_SENT,
+        GAME_STARTED,
+        GAME_OVER
     }
 }
