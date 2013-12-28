@@ -77,7 +77,7 @@ namespace SteamBot.PugLib
 
                 if (pug.Full)
                 {
-                    String msg = String.Format("Pug {0} is now full. Players: {1}", pug.Id, GetPlayerListAsString(pug));
+                    String msg = String.Format("Pug {0} is now full. Players: {1}", pug.Id, GetPugPlayerListAsString(pug));
                     ChatHandler.sendMainRoomMessage(msg);
 
                     StartMapVote(pug);
@@ -144,7 +144,7 @@ namespace SteamBot.PugLib
                 return;
             }
 
-            if (size != 12 || size != 18)
+            if (size != 12 && size != 18)
             {
                 ChatHandler.sendMessage(null, player, "Invalid pug size specified. Must be 12 or 18");
                 return;
@@ -162,6 +162,29 @@ namespace SteamBot.PugLib
             ChatHandler.sendMainRoomMessage(msg);
 
             AdvertisePug(pug);
+        }
+
+        public void EndPug(Pug pug)
+        {
+            if (pug == null)
+                return;
+
+            ResetServer(pug);
+
+            pug_list.Remove(pug);
+
+            String msg = String.Format("Pug {0} has been manually ended", pug.Id);
+            ChatHandler.sendMainRoomMessage(msg);
+        }
+
+        public void EndPug(SteamID player, bool admin = false)
+        {
+            Pug pug;
+
+            if ((pug = GetPlayerPug(player)) != null && (pug.Starter == player || admin))
+            {
+                EndPug(pug);
+            }
         }
 
         void AdvertisePug(Pug pug)
@@ -183,7 +206,7 @@ namespace SteamBot.PugLib
             if (pug.VoteInProgress || pug.Started)
                 return;
 
-            pug.VoteInProgress = true;
+            pug.StartMapVote();
 
             String msg = String.Format("Map voting is now in progress for pug {0}. Maps: {1}",
                 pug.Id, Pug.GetMapsAsString());
@@ -202,9 +225,7 @@ namespace SteamBot.PugLib
          */
         void EndMapVote(Pug pug)
         {
-            pug.VoteInProgress = false;
-
-            pug.DetermineWinningMap();
+            pug.EndMapVote();
 
             if (pug.Map == EPugMaps.None)
             {
@@ -218,7 +239,20 @@ namespace SteamBot.PugLib
 
             ChatHandler.sendMainRoomMessage(msg);
 
+            msg = String.Format(
+                "Pug {0} is now in-game. Admin: {1}. Details are being sent, please join the server PROMPTLY",
+                pug.Id, steam_friends.GetFriendPersonaName(pug.Starter)
+            );
+
+            ChatHandler.sendMainRoomMessage(msg);
+
             // now we do some shit to send details, setup server, etc
+            pug.ShuffleTeams();
+            ShowTeams(pug);
+
+            PrepareServer(pug);
+
+            SendMassDetails(pug);
         }
 
         public void ForceMapVote(SteamID player)
@@ -232,7 +266,8 @@ namespace SteamBot.PugLib
 
         public void ForceMapVote(Pug pug)
         {
-            StartMapVote(pug);
+            if (pug != null)
+                StartMapVote(pug);
         }
 
         /** 
@@ -279,6 +314,77 @@ namespace SteamBot.PugLib
         }
 
         //----------------------------------------------
+        // SERVER INTERACTION AND DETAILS
+        //----------------------------------------------
+
+        void PrepareServer(Pug pug)
+        {
+            // selects a server and sets up the details and shit
+            pug.ip = "1.1.1.1";
+            pug.port = 11111;
+            pug.password = "123abc";
+            pug.AdminPassword = "asdf";
+        }
+
+        void ResetServer(Pug pug)
+        {
+
+        }
+
+        public void SendMassDetails(Pug pug)
+        {
+            foreach (var player in pug.Players)
+                Details(player, pug);
+
+            pug.State = EPugState.DETAILS_SENT;
+        }
+
+        public void Details(SteamID player, bool admin = false)
+        {
+            Pug pug;
+            if ((pug = GetPlayerPug(player)) != null)
+            {
+                if (pug.State == EPugState.DETAILS_SENT || admin)
+                    Details(player, pug, admin);
+            }
+        }
+
+        public void Details(SteamID player, Pug pug, bool admin = false)
+        {
+            String msg;
+
+            if (player == pug.Starter || admin)
+            {
+                msg = String.Format("Server details for pug {0}: {1}. Admin pass: {2}",
+                        pug.Id, pug.ConnectString, pug.AdminPassword
+                    );
+            }
+            else
+            {
+                msg = String.Format("Server details for pug {0}: {1}",
+                        pug.Id, pug.ConnectString
+                    );
+            }
+
+            ChatHandler.sendMessage(null, player, msg);
+        }
+
+        public void ShowTeams(Pug pug)
+        {
+            String msg = String.Format("Teams for pug {0}:", pug.Id);
+            ChatHandler.sendMainRoomMessage(msg);
+
+            List<String> team_list = GetNamedPlayerList(pug.TeamRed);
+
+            msg = String.Format("RED: {0}", String.Join(", ", team_list));
+            ChatHandler.sendMainRoomMessage(msg);
+
+            team_list = GetNamedPlayerList(pug.TeamBlue);
+            msg = String.Format("BLUE: {0}", String.Join(", ", team_list));
+            ChatHandler.sendMainRoomMessage(msg);
+        }
+
+        //----------------------------------------------
         // MISC HELPER METHODS
         //----------------------------------------------
 
@@ -322,6 +428,25 @@ namespace SteamBot.PugLib
             return pug_list.Find(pug => pug.Id == id);
         }
 
+        /**
+         * Takes a list of SteamIDs and converts it to a list of names
+         * 
+         * @param List<SteamID> players The player list
+         * 
+         * @return List<String> A list of player names
+         */
+        public List<String> GetNamedPlayerList(List<SteamID> players)
+        {
+            List<String> names = new List<String>();
+
+            foreach (var player in players)
+            {
+                names.Add(steam_friends.GetFriendPersonaName(player));
+            }
+
+            return names;
+        }
+
         /** 
          * Gets a list of players in the given pug as a string so it can be
          * easily printed
@@ -330,16 +455,9 @@ namespace SteamBot.PugLib
          * 
          * @return String The string of players
          */
-        public String GetPlayerListAsString(Pug pug)
+        public String GetPugPlayerListAsString(Pug pug)
         {
-            List<String> names = new List<String>();
-
-            foreach (var player in pug.Players)
-            {
-                names.Add(steam_friends.GetFriendPersonaName(player));
-            }
-
-            return String.Join(", ", names);
+            return String.Join(", ", GetNamedPlayerList(pug.Players));
         }
 
         public List<Pug> Pugs
