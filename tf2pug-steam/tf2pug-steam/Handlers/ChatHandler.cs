@@ -134,7 +134,7 @@ namespace SteamBot.Handlers
             {
                 pug_clan.MemberManager.PrintMembers();
             }
-            else if (cmd == "!fakeuserjoin" && rank == EClanRank.Owner)
+            else if (cmd == "!fakeclients" && rank == EClanRank.Owner)
             {
                 if (args.Length == 0)
                     return;
@@ -147,6 +147,17 @@ namespace SteamBot.Handlers
                     fake = new SteamID((76561197960265728UL + (ulong)i));
 
                     pug_manager.AddPlayer(fake);
+                }
+            }
+            else if (cmd == "!endpug")
+            {
+                if (args.Length > 0 && admin)
+                {
+                    pug_manager.EndPug(pug_manager.GetPugById(long.Parse(args[0])));
+                }
+                else
+                {
+                    pug_manager.EndPug(sender, admin);
                 }
             }
         }
@@ -194,7 +205,7 @@ namespace SteamBot.Handlers
 
         void PrintPlayers(Pug pug)
         {
-            String players = pug_manager.GetPlayerListAsString(pug);
+            String players = pug_manager.GetPugPlayerListAsString(pug);
 
             String msg = String.Format("Players in pug {0}: {1}",
                 pug.Id, players);
