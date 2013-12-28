@@ -45,7 +45,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ClanLib\ClanMemberManager.cs" />
+    <Compile Include="ClanLib\ClanManager.cs" />
+    <Compile Include="ClanLib\Clan.cs" />
     <Compile Include="Handlers\ChatHandler.cs" />
+    <Compile Include="ClanLib\ClanChatUserManager.cs" />
     <Compile Include="PugLib\Pug.cs" />
     <Compile Include="PugLib\PugManager.cs" />
     <Compile Include="Program.cs" />

@@ -8,6 +8,7 @@ using SteamKit2;
 
 using SteamBot.PugLib;
 using SteamBot.Handlers;
+using SteamBot.ClanLib;
 
 namespace SteamBot
 {
@@ -34,10 +35,14 @@ namespace SteamBot
         /** Chat parser */
         static ChatHandler cparser;
 
-        // main pug channel
+        /** SteamID object for the pug group, needed to send messages to group chat */
         public static SteamID pugChatId = new SteamID(103582791434957782);
 
-        /** Entry point. Establish client and user, setup callbacks, and 
+        /** A collection to manage users and ranks in the pug room */
+        static Dictionary<long, ClanChatUserManager> room_dict;
+
+        /** 
+         * Entry point. Establish client and user, setup callbacks, and 
          * run the bot
          * 
          * @param string[] args Command line arguments
@@ -108,6 +113,9 @@ namespace SteamBot
 
             // establish chat parser
             cparser = new ChatHandler(steam_friends, pug_manager);
+
+            // get the room dictionary setup
+            room_dict = new Dictionary<long, ClanChatUserManager>();
 
             // now enter the main loop and connect
             Console.WriteLine("Connecting to steam...");
@@ -253,6 +261,7 @@ namespace SteamBot
             // shortly after a successful logon
 
             steam_friends.SetPersonaState(EPersonaState.Online);
+            steam_friends.SetPersonaName("iPGN PUG");
 
             Console.WriteLine("Account info received. Clan count: {0}, friend count: {1}",
                 steam_friends.GetClanCount(), steam_friends.GetFriendCount());
@@ -331,17 +340,21 @@ namespace SteamBot
             }
             else if (callback.SourceSteamID.IsClanAccount)
             {
-                Console.WriteLine("CLAN MEMBERSHIP INFO - {0} ({1}) is rank {2} in clan {3} ({4})",
-                        callback.Name, callback.FriendID, callback.ClanRank, callback.ClanTag, 
+                Console.WriteLine("CLAN MEMBERSHIP INFO - {0} ({1}) is rank {2} in clan {3}",
+                        callback.Name, callback.FriendID, (EClanRank)callback.ClanRank, 
                         callback.SourceSteamID
                     );
+
+                EClanRank rank = (EClanRank)callback.ClanRank;
+
+                //add member to this clan
 
                 
             }
             else if (callback.SourceSteamID.IsChatAccount)
             {
                 Console.WriteLine("GROUP CHAT INFO - user: {0} ({1}), chat: {2}, rank: {3}, tag: {4}, stateflag: {5}, statusflag: {6}",
-                        callback.Name, callback.FriendID, callback.SourceSteamID, callback.ClanRank,
+                        callback.Name, callback.FriendID, callback.SourceSteamID, (EClanRank)callback.ClanRank,
                         callback.ClanTag, callback.StateFlags, callback.StatusFlags
                     );
             }
